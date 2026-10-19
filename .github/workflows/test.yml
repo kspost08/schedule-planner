@@ -1,0 +1,25 @@
+# 每次 push 或開 PR 時，自動在三種時區跑計算引擎測試。
+# 任何一種時區失敗，commit 旁邊就會出現紅色 ✕。
+name: 計算引擎測試
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: # 也可以在 Actions 頁面手動執行
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [Asia/Taipei, America/New_York, UTC]
+    name: 時區 ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tests/run-node.mjs
+        env:
+          TZ: ${{ matrix.tz }}
