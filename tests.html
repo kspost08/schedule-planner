@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>計算引擎測試</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --line: #e5e7eb;
+    --ok: #15803d; --ok-bg: #ecfdf3; --ng: #b91c1c; --ng-bg: #fef2f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141517; --card: #1d1f22; --text: #e8e8e6; --muted: #9aa0a6; --line: #2e3135;
+      --ok: #4ade80; --ok-bg: #12261a; --ng: #f87171; --ng-bg: #2a1515;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--text);
+    font: 15px/1.6 -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .summary {
+    padding: 14px 16px; border-radius: 10px; font-weight: 600; font-size: 17px; margin-bottom: 20px;
+  }
+  .summary.ok { background: var(--ok-bg); color: var(--ok); }
+  .summary.ng { background: var(--ng-bg); color: var(--ng); }
+  h2 { font-size: 14px; color: var(--muted); font-weight: 600; margin: 22px 0 8px; }
+  ul { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  li { padding: 9px 14px; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+  li:first-child { border-top: 0; }
+  .mark { font-weight: 700; width: 1em; flex: none; }
+  .pass .mark { color: var(--ok); }
+  .fail { background: var(--ng-bg); }
+  .fail .mark { color: var(--ng); }
+  .id { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .diffs { margin: 4px 0 0; font-size: 13px; color: var(--ng); }
+  .diffs div { font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+  <h1>計算引擎測試</h1>
+  <div class="meta" id="meta">執行中…</div>
+  <div class="summary" id="summary"></div>
+  <div id="list"></div>
+</main>
+
+<script type="module">
+  import { computeSchedule } from './js/scheduler.js';
+  import { cases, TEST_CALENDAR } from './tests/cases.js';
+  import { runCase } from './tests/check.js';
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  document.getElementById('meta').textContent = `瀏覽器時區：${tz}　共 ${cases.length} 個案例`;
+
+  const groups = new Map();
+  let failed = 0;
+  for (const c of cases) {
+    const r = runCase(c, computeSchedule, TEST_CALENDAR);
+    if (!r.pass) failed++;
+    if (!groups.has(c.group)) groups.set(c.group, []);
+    groups.get(c.group).push({ c, r });
+  }
+
+  const summary = document.getElementById('summary');
+  summary.className = 'summary ' + (failed ? 'ng' : 'ok');
+  summary.textContent = failed
+    ? `✗ ${failed} 個案例失敗（通過 ${cases.length - failed} / ${cases.length}）`
+    : `✓ 全部通過（${cases.length} / ${cases.length}）`;
+
+  let html = '';
+  for (const [g, items] of groups) {
+    html += `<h2>${esc(g)}</h2><ul>`;
+    for (const { c, r } of items) {
+      html += `<li class="${r.pass ? 'pass' : 'fail'}"><span class="mark">${r.pass ? '✓' : '✗'}</span>`
+        + `<span class="id">${esc(c.id)}</span><div>${esc(c.title)}`
+        + (r.pass ? '' : `<div class="diffs">${r.diffs.map((d) => `<div>${esc(d)}</div>`).join('')}</div>`)
+        + `</div></li>`;
+    }
+    html += '</ul>';
+  }
+  document.getElementById('list').innerHTML = html;
+</script>
+</body>
+</html>
